@@ -1,6 +1,6 @@
 # Bio-DID-Seq: Decentralized Identifiers for Biological Research Data
 
-Bio-DID-Seq is a GDPR-compliant Decentralized Identifier (DID) system designed as a sustainable, user centric addition to existing persistent identifier infrastructures like DOI and Handle. The system integrates with Dataverse and is demonstrated through AI applications to showcase decentralized metadata management and user empowerment in cultural heritage and biological research data contexts.
+Bio-DID-Seq is a GDPR compliant Decentralized Identifier (DID) system designed for research data, integrating with Dataverse and powered by AI agents to showcase decentralized metadata management and user empowerment in cultural heritage and biological research data contexts.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -32,12 +32,24 @@ Bio-DID-Seq implements a layered architecture combining several technologies:
 4. **Application Layer**: Actix Web API for service endpoints
 5. **Integration Layer**: Connectors for BioAgents and Dataverse
 
+## Cost Reduction Numbers for Bio-DID-Seq Identifier Creation 
+
+- **Decentralized Storage**: Centralized cloud storage (e.g., AWS S3) for large scale research data can cost $0.023-$0.10 per GB/month for storage and $0.09-$0.12 per GB for data retrieval. Bio-DID-Seq uses IPFS for decentralized storage, reducing costs to near $0 for storage if hosted on community nodes, or ~$0.005-$0.01 per GB/month on paid pinning services (e.g., Pinata, Filebase, Publiish etc). This can lead to 70-90% savings for storing identifier metadata (e.g., DID documents, typically <1 KB each). Example: For 1 million DID documents (~1 GB total), IPFS storage costs ~$0.01/month vs. $23-$100/month on AWS S3.
+
+- **Automation via AI (BioAgents)**: Manual creation of identifiers and metadata for research datasets can cost $20-$50 per hour for skilled labor, with an average of 1-2 minutes per identifier. For 1 million identifiers, this translates to ~16,667-33,000 hours or $333,340-$1,666,650 in labor costs. Bio-DID-Seq’s BioAgents automate metadata extraction and DID creation, reducing processing time to seconds per identifier. Assuming a server cost of $0.10-$1.50 per hour for AI processing, generating 1 million identifiers might cost ~$100-$500, a 99.9% cost reduction.
+
+- **DID Creation Efficiency**: Traditional Identifier Systems: Proprietary systems like DOIs (Digital Object Identifiers) charge $0.01-$1 per identifier for creation and maintenance (e.g., DataCite pricing). For 1 million identifiers, this costs $10,000-$300,000. W3C compliant DIDs in Bio-DID-Seq are generated using Rust based DID Manager, with negligible computational costs (~$0.001 per 1,000 DIDs on a standard server). For 1 million DIDs, total cost is ~$1-$10, a 99.9% reduction compared to DOI systems. Decentralized DIDs require no annual fees (unlike DOIs), saving $0.50-$5 per identifier annually.
+
+- **UCAN Authorization**: Bio-DID-Seq’s UCAN based authorization eliminates central server costs, relying on cryptographic tokens managed client side. Setup costs are minimal and operational costs are near $0, yielding 90-100% savings for access management. Publishing datasets to Dataverse manually involves labor costs of $18-$50/hour for metadata entry and validation, with 10-30 minutes per dataset. For 10,000 datasets, this costs $33,000-$100,000.
+
+- **Bio-DID-Seq Automation**: The Dataverse Adapter automates metadata synchronization and publishing, reducing time to seconds per dataset. Assuming API call costs of $0.001-$0.01 per dataset, publishing 10,000 datasets costs $10-$100, a 99% cost reduction.
+
 ### Components
 
 - **IPFS Cluster**: Provides redundant, decentralized storage
-- **DID Manager**: Creates and manages W3C-compliant DIDs
+- **DID Manager**: Creates and manages W3C compliant DIDs
 - **UCAN Auth**: Handles authorization using capability-based security
-- **BioAgents Connector**: Integrates with AI-powered biological data processing
+- **BioAgents Connector**: Integrates with AI powered biological data processing
 - **Dataverse Adapter**: Connects with Harvard Dataverse for data publishing
 
 ## Prerequisites
@@ -55,7 +67,7 @@ Ensure you have the following installed:
 
 1. Clone the repository:
 ```sh
-git clone https://github.com/did-seq/bio-did-seq
+git clone https://github.com/publiish/bio-did-seq
 cd bio-did-seq
 ```
 
@@ -163,7 +175,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - W3C DID and Verifiable Credentials Working Groups
-- UCAN Community
+- UCAN Working Group
 - IPFS and Filecoin Teams
 - Harvard Dataverse Project
 - BioAgents Contributors
