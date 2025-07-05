@@ -5,6 +5,7 @@ use pqcrypto_traits::sign::{PublicKey as OtherPublicKey, SecretKey as OtherSecre
 use std::env;
 
 /// Configuration settings
+#[derive(Clone, Debug)]
 pub struct Config {
     pub ipfs_node: String,
     pub database_url: String,
@@ -15,29 +16,32 @@ pub struct Config {
     dilithium_secret_key: String,
     pub max_concurrent_uploads: usize,
 }
+pub fn load_config() -> Result<Config, env::VarError> {
+    dotenv::dotenv().ok();
+
+    // Default maximum concurrent uploads
+    const DEFAULT_MAX_CONCURRENT_UPLOADS: usize = 42;
+
+    let max_concurrent_uploads = env::var("MAX_CONCURRENT_UPLOADS")
+        .unwrap_or_else(|_| DEFAULT_MAX_CONCURRENT_UPLOADS.to_string())
+        .parse::<usize>()
+        .map_err(|_| env::VarError::NotPresent)?;
+
+    Ok(Config {
+        ipfs_node: env::var("IPFS_NODE")
+            .unwrap_or_else(|_| "http://127.0.0.1:5001".to_string()),
+        database_url: env::var("DATABASE_URL")?,
+        bind_address: env::var("BIND_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8081".to_string()),
+        dilithium_public_key: env::var("DILITHIUM_PUBLIC_KEY")?,
+        dilithium_secret_key: env::var("DILITHIUM_SECRET_KEY")?,
+        max_concurrent_uploads,
+    })
+}
 
 impl Config {
     /// Loads configuration from environment variables
     pub fn from_env() -> Result<Self, env::VarError> {
-        dotenv::dotenv().ok();
-
-        // Default maximum concurrent uploads
-        const DEFAULT_MAX_CONCURRENT_UPLOADS: usize = 42;
-
-        let max_concurrent_uploads = env::var("MAX_CONCURRENT_UPLOADS")
-            .unwrap_or_else(|_| DEFAULT_MAX_CONCURRENT_UPLOADS.to_string())
-            .parse::<usize>()
-            .map_err(|_| env::VarError::NotPresent)?;
-
-        Ok(Config {
-            ipfs_node: env::var("IPFS_NODE")
-                .unwrap_or_else(|_| "http://127.0.0.1:5001".to_string()),
-            database_url: env::var("DATABASE_URL")?,
-            bind_address: env::var("BIND_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8081".to_string()),
-            dilithium_public_key: env::var("DILITHIUM_PUBLIC_KEY")?,
-            dilithium_secret_key: env::var("DILITHIUM_SECRET_KEY")?,
-            max_concurrent_uploads,
-        })
+        load_config()
     }
 
     pub fn get_public_key(&self) -> Result<PublicKey, String> {

@@ -49,6 +49,42 @@ pub async fn init_schema(pool: &Pool) -> Result<(), mysql_async::Error> {
         )",
     )
     .await?;
+    
+    conn.query_drop(
+        r"CREATE TABLE IF NOT EXISTS did_documents (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT,
+            did VARCHAR(255) NOT NULL UNIQUE,
+            cid VARCHAR(100) NOT NULL,
+            user_id INT NOT NULL,
+            dataverse_doi VARCHAR(255),
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_did (did),
+            INDEX idx_cid (cid),
+            INDEX idx_user_id (user_id)
+        )",
+    )
+    .await?;
+    
+    conn.query_drop(
+        r"CREATE TABLE IF NOT EXISTS ucan_tokens (
+            id VARCHAR(36) PRIMARY KEY,
+            user_id INT NOT NULL,
+            token TEXT NOT NULL,
+            audience_did VARCHAR(255) NOT NULL,
+            issued_at DATETIME NOT NULL,
+            expires_at DATETIME NOT NULL,
+            revoked BOOLEAN DEFAULT FALSE,
+            revoked_at DATETIME,
+            delegated_from VARCHAR(255),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id),
+            INDEX idx_audience (audience_did),
+            INDEX idx_delegated_from (delegated_from)
+        )",
+    )
+    .await?;
 
     info!("Database schema initialized");
     Ok(())

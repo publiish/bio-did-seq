@@ -1,5 +1,5 @@
 [package]
-name = "publiish-api"
+name = "bio-did-seq"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,7 +10,7 @@ actix-multipart = "0.7.2"
 actix-service = "2.0.3"
 async-stream = "0.3.6"
 sanitize-filename = "0.6.0"
-uuid = { version = "1.16.0", features = ["v4"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
 mime_guess = "2.0.5"
 ipfs-api = "0.17.0"
 ipfs-api-prelude = "0.6.0"
@@ -41,6 +41,11 @@ dashmap = "6.1.0"
 num_cpus = "1.16.0"
 governor = "0.10.0"
 quanta = "0.12.5"
+reqwest = { version = "0.11", features = ["json", "multipart"] }
+tempfile = "3.10.1"
+anyhow = "1.0"
+ucan = { version = "0.4.0" }
+ucan-key-support = { version = "0.1.7" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["time", "test-util"] }

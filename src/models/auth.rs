@@ -25,3 +25,56 @@ pub struct Claims {
 pub struct AuthResponse {
     pub token: String,
 }
+
+/// User authentication model
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthUser {
+    pub user_id: i64,
+    pub id: i64,
+    pub username: String,
+    pub roles: Vec<String>,
+}
+
+impl AuthUser {
+    pub fn new(user_id: i64, username: String, roles: Vec<String>) -> Self {
+        Self {
+            user_id,
+            // Set both user_id and id to the same value for compatibility
+            id: user_id,
+            username,
+            roles,
+        }
+    }
+    
+    pub fn is_admin(&self) -> bool {
+        self.roles.contains(&"admin".to_string())
+    }
+}
+
+/// Login request model
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+/// API key request model
+#[derive(Debug, Deserialize)]
+pub struct ApiKeyRequest {
+    pub name: String,
+    pub expires_in_days: Option<i32>,
+}
+
+/// Login response model
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub user: AuthUser,
+}
+
+/// API key response model
+#[derive(Debug, Serialize)]
+pub struct ApiKeyResponse {
+    pub key: String,
+    pub expires_at: String,
+}
