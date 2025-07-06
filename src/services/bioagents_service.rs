@@ -16,7 +16,6 @@ pub struct HealthStatus {
 pub struct BioAgentsService {
     client: Client,
     api_url: String,
-    api_key: String,
 }
 
 /// Request body for processing a paper through BioAgents
@@ -87,7 +86,7 @@ pub struct TaskStatus {
 
 impl BioAgentsService {
     /// Create a new BioAgents service
-    pub fn new(api_url: &str, api_key: &str) -> Self {
+    pub fn new(api_url: &str) -> Self {
         // Create HTTP client with appropriate timeouts
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -98,7 +97,6 @@ impl BioAgentsService {
         Self {
             client,
             api_url: api_url.to_string(),
-            api_key: api_key.to_string(),
         }
     }
     
@@ -254,7 +252,6 @@ impl BioAgentsService {
         
         // Send the request to BioAgents
         let response = self.client.post(&format!("{}/query", self.api_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
             .await
@@ -306,7 +303,6 @@ impl BioAgentsService {
         
         // Send the request to BioAgents
         let response = self.client.post(&format!("{}/knowledge", self.api_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
             .await

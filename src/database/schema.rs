@@ -86,6 +86,52 @@ pub async fn init_schema(pool: &Pool) -> Result<(), mysql_async::Error> {
     )
     .await?;
 
+    conn.query_drop(
+        r"CREATE TABLE IF NOT EXISTS research_papers (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT,
+            title VARCHAR(255) NOT NULL,
+            authors JSON NOT NULL,
+            abstract_text TEXT,
+            doi VARCHAR(100),
+            publication_date VARCHAR(50),
+            journal VARCHAR(255),
+            keywords JSON,
+            cid VARCHAR(100) NOT NULL,
+            did VARCHAR(255) NOT NULL,
+            biological_entities JSON,
+            knowledge_graph_cid VARCHAR(100),
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            user_id INT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (did) REFERENCES did_documents(did) ON DELETE CASCADE,
+            INDEX idx_cid (cid),
+            INDEX idx_did (did),
+            INDEX idx_doi (doi),
+            INDEX idx_user_id (user_id)
+        )",
+    )
+    .await?;
+
+    conn.query_drop(
+        r"CREATE TABLE IF NOT EXISTS bioagent_tasks (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT,
+            task_id VARCHAR(100) NOT NULL UNIQUE,
+            user_id INT NOT NULL,
+            cid VARCHAR(100) NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            progress FLOAT DEFAULT 0.0,
+            result_cid VARCHAR(100),
+            created_at DATETIME NOT NULL,
+            completed_at DATETIME,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_task_id (task_id),
+            INDEX idx_user_id (user_id),
+            INDEX idx_cid (cid)
+        )",
+    )
+    .await?;
+
     info!("Database schema initialized");
     Ok(())
 }

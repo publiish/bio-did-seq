@@ -34,3 +34,30 @@ pub struct TaskInfo {
     pub status: UploadStatus,
     pub tx: Option<oneshot::Sender<Result<FileMetadata, ServiceError>>>,
 }
+
+/// Research paper metadata extracted from papers and linked to DIDs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchPaperMetadata {
+    pub title: String,
+    pub authors: Vec<String>,
+    pub abstract_text: String,
+    pub doi: Option<String>,
+    pub publication_date: Option<String>,
+    pub journal: Option<String>,
+    pub keywords: Vec<String>,
+    pub cid: String,
+    pub did: String,
+    pub biological_entities: Vec<BiologicalEntityReference>,
+    pub knowledge_graph_cid: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Reference to a biological entity identified in a research paper
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BiologicalEntityReference {
+    pub entity_type: String,
+    pub name: String,
+    pub identifier: Option<String>,
+    pub source: Option<String>,
+}

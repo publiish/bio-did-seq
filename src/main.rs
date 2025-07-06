@@ -25,6 +25,7 @@ use services::did_service::DIDService;
 use services::bioagents_service::BioAgentsService;
 use services::dataverse_service::DataverseService;
 use services::ucan_service::UcanService;
+use services::research_paper_service::ResearchPaperService;
 
 // Post-quantum crypto imports
 use pqcrypto_dilithium::dilithium5;
@@ -124,8 +125,7 @@ async fn start_server() -> io::Result<()> {
     
     // Initialize BioAgents service
     let bioagents_service = BioAgentsService::new(
-        &env::var("BIOAGENTS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string()),
-        &env::var("BIOAGENTS_API_KEY").unwrap_or_else(|_| "default-api-key".to_string())
+        &env::var("BIOAGENTS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
     );
     let bioagents_service = Arc::new(bioagents_service);
     
@@ -142,6 +142,15 @@ async fn start_server() -> io::Result<()> {
         io::Error::new(io::ErrorKind::Other, "UCAN service initialization failed")
     })?;
     let ucan_service = Arc::new(ucan_service);
+    
+    // Initialize Research Paper service
+    let research_paper_service = ResearchPaperService::new(
+        db_pool.clone(),
+        ipfs_service.clone(),
+        did_service.clone(),
+        bioagents_service.clone()
+    );
+    let research_paper_service = Arc::new(research_paper_service);
 
     // Create app state
     let app_state = routes::AppState {
@@ -150,6 +159,7 @@ async fn start_server() -> io::Result<()> {
         bioagents_service: bioagents_service.clone(),
         dataverse_service: dataverse_service.clone(),
         ucan_service: ucan_service.clone(),
+        research_paper_service: research_paper_service.clone(),
     };
     
     let rate_limiter = UserRateLimiter::new();

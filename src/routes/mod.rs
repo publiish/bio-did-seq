@@ -3,6 +3,7 @@ use crate::services::did_service::DIDService;
 use crate::services::bioagents_service::BioAgentsService;
 use crate::services::dataverse_service::DataverseService;
 use crate::services::ucan_service::UcanService;
+use crate::services::research_paper_service::ResearchPaperService;
 use actix_web::web;
 use std::sync::Arc;
 
@@ -11,6 +12,7 @@ pub mod bioagents;
 pub mod dataverse;
 pub mod did;
 pub mod file;
+pub mod research_paper;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -19,6 +21,7 @@ pub struct AppState {
     pub bioagents_service: Arc<BioAgentsService>,
     pub dataverse_service: Arc<DataverseService>,
     pub ucan_service: Arc<UcanService>,
+    pub research_paper_service: Arc<ResearchPaperService>,
 }
 
 pub fn init_routes(cfg: &mut web::ServiceConfig) {
@@ -28,6 +31,7 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
             .configure(file::init_routes)
             .configure(did::init_routes)
             .configure(bioagents::init_routes)
-            .configure(dataverse::init_routes),
+            .configure(dataverse::init_routes)
+            .configure(research_paper::init_routes),
     );
 }

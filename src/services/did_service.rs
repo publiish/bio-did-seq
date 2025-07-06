@@ -1,7 +1,6 @@
 use crate::errors::AppError;
 use crate::models::did::{DIDDocument, DIDCreationRequest, DIDUpdateRequest, generate_did, create_default_did_document};
 use crate::services::ipfs_service::IPFSService;
-use crate::services::ucan_service::UcanService;
 use std::sync::Arc;
 use mysql_async::{Pool, prelude::*};
 use chrono::Utc;
