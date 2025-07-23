@@ -11,40 +11,40 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("IPFS error: {0}")]
     IPFSError(#[from] ipfs_api::Error),
-    
+
     #[error("Authentication error: {0}")]
     AuthError(String),
-    
+
     #[error("Authorization error: {0}")]
     AuthorizationError(String),
-    
+
     #[error("Resource not found: {0}")]
     NotFound(String),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
-    
+
     #[error("Service error: {0}")]
     ServiceError(String),
-    
+
     #[error("Serialization error")]
     SerializationError,
-    
+
     #[error("Deserialization error")]
     DeserializationError,
-    
+
     #[error("File error: {0}")]
     FileError(String),
-    
+
     #[error("HTTP request error: {0}")]
     RequestError(String),
-    
+
     #[error("Dataverse API error: {0}")]
     DataverseApiError(String),
-    
+
     #[error("External service error: {0}")]
     ExternalServiceError(String),
 }

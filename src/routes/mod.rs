@@ -1,9 +1,9 @@
-use crate::services::ipfs_service::IPFSService;
-use crate::services::did_service::DIDService;
 use crate::services::bioagents_service::BioAgentsService;
 use crate::services::dataverse_service::DataverseService;
-use crate::services::ucan_service::UcanService;
+use crate::services::did_service::DIDService;
+use crate::services::ipfs_service::IPFSService;
 use crate::services::research_paper_service::ResearchPaperService;
+use crate::services::ucan_service::UcanService;
 use actix_web::web;
 use std::sync::Arc;
 

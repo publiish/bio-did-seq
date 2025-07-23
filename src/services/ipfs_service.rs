@@ -4,7 +4,7 @@ use crate::{
         cleanup_expired_tasks, cleanup_failed_upload, init_schema, insert_file_metadata,
         insert_initial_task, login_user, register_user, update_task_status,
     },
-    errors::{ServiceError, AppError},
+    errors::{AppError, ServiceError},
     middleware::rate_limiter::{cleanup_rate_limiters, RateLimiterEntry},
     models::{
         auth::{Claims, TokenHeader},
@@ -637,65 +637,65 @@ impl IPFSService {
     /// Add a string content to IPFS and return its CID
     pub async fn add_content(&self, content: &str) -> Result<String, AppError> {
         info!("Adding string content to IPFS: {} bytes", content.len());
-        
+
         // Copy the content to a Vec<u8> to avoid lifetime issues
         let content_bytes = content.as_bytes().to_vec();
-        
+
         // Create a cursor to implement Read trait for the Vec<u8>
         let cursor = std::io::Cursor::new(content_bytes);
-        
-        let response = self.client
-            .add(cursor)
-            .await
-            .map_err(|e| {
-                error!("IPFS add error: {}", e);
-                AppError::IPFSError(e)
-            })?;
-        
+
+        let response = self.client.add(cursor).await.map_err(|e| {
+            error!("IPFS add error: {}", e);
+            AppError::IPFSError(e)
+        })?;
+
         let hash = response.hash;
         info!("Content stored on IPFS with hash: {}", hash);
-        
+
         Ok(hash)
     }
-    
+
     /// Retrieve content from IPFS by its CID
     pub async fn get_content(&self, cid: &str) -> Result<String, AppError> {
         info!("Getting content from IPFS for CID: {}", cid);
 
         let response_stream = self.client.cat(cid);
-        
+
         // Use stream_to_vec to collect all bytes from the stream
         let bytes = self.collect_stream_bytes(response_stream).await?;
 
-        let content = String::from_utf8(bytes)
-            .map_err(|e| {
-                error!("Failed to convert IPFS bytes to string: {}", e);
-                AppError::DeserializationError
-            })?;
+        let content = String::from_utf8(bytes).map_err(|e| {
+            error!("Failed to convert IPFS bytes to string: {}", e);
+            AppError::DeserializationError
+        })?;
 
-        info!("Successfully retrieved content from IPFS, size: {} bytes", content.len());
-        
+        info!(
+            "Successfully retrieved content from IPFS, size: {} bytes",
+            content.len()
+        );
+
         Ok(content)
     }
 
     // Helper method to collect bytes from a stream
     async fn collect_stream_bytes(
-        &self, 
-        mut stream: impl futures_util::Stream<Item = Result<actix_web::web::Bytes, ipfs_api::Error>> + Unpin
+        &self,
+        mut stream: impl futures_util::Stream<Item = Result<actix_web::web::Bytes, ipfs_api::Error>>
+            + Unpin,
     ) -> Result<Vec<u8>, AppError> {
         use futures_util::StreamExt;
-        
+
         let mut bytes = Vec::new();
-        
+
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.map_err(|e| {
                 error!("Error reading from IPFS stream: {}", e);
                 AppError::IPFSError(e)
             })?;
-            
+
             bytes.extend_from_slice(&chunk);
         }
-        
+
         Ok(bytes)
     }
 }

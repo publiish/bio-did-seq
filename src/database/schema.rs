@@ -49,7 +49,7 @@ pub async fn init_schema(pool: &Pool) -> Result<(), mysql_async::Error> {
         )",
     )
     .await?;
-    
+
     conn.query_drop(
         r"CREATE TABLE IF NOT EXISTS did_documents (
             id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -66,7 +66,7 @@ pub async fn init_schema(pool: &Pool) -> Result<(), mysql_async::Error> {
         )",
     )
     .await?;
-    
+
     conn.query_drop(
         r"CREATE TABLE IF NOT EXISTS ucan_tokens (
             id VARCHAR(36) PRIMARY KEY,

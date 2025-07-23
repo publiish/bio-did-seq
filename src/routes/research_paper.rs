@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
-use serde::Deserialize;
 use log::info;
+use serde::Deserialize;
 
 use crate::errors::AppError;
 use crate::models::auth::AuthUser;
@@ -27,16 +27,22 @@ pub async fn process_paper(
     app_state: web::Data<AppState>,
     request: web::Json<ProcessPaperRequest>,
 ) -> Result<impl Responder, AppError> {
-    info!("Processing research paper for user {}: {}", user.id, request.title);
-    
-    let did = app_state.research_paper_service.process_paper_and_create_metadata(
-        &request.file_cid,
-        &request.title,
-        &request.authors,
-        request.doi.as_deref(),
-        user.id,
-    ).await?;
-    
+    info!(
+        "Processing research paper for user {}: {}",
+        user.id, request.title
+    );
+
+    let did = app_state
+        .research_paper_service
+        .process_paper_and_create_metadata(
+            &request.file_cid,
+            &request.title,
+            &request.authors,
+            request.doi.as_deref(),
+            user.id,
+        )
+        .await?;
+
     Ok(HttpResponse::Accepted().json(serde_json::json!({
         "message": "Research paper processed successfully",
         "did": did
@@ -50,9 +56,12 @@ pub async fn get_paper_metadata_by_did(
 ) -> Result<impl Responder, AppError> {
     let did = path.into_inner();
     info!("Getting research paper metadata for DID: {}", did);
-    
-    let metadata = app_state.research_paper_service.get_paper_metadata_by_did(&did).await?;
-    
+
+    let metadata = app_state
+        .research_paper_service
+        .get_paper_metadata_by_did(&did)
+        .await?;
+
     Ok(HttpResponse::Ok().json(metadata))
 }
 
@@ -63,9 +72,12 @@ pub async fn get_paper_metadata_by_cid(
 ) -> Result<impl Responder, AppError> {
     let cid = path.into_inner();
     info!("Getting research paper metadata for CID: {}", cid);
-    
-    let metadata = app_state.research_paper_service.get_paper_metadata_by_cid(&cid).await?;
-    
+
+    let metadata = app_state
+        .research_paper_service
+        .get_paper_metadata_by_cid(&cid)
+        .await?;
+
     Ok(HttpResponse::Ok().json(metadata))
 }
 
@@ -75,9 +87,12 @@ pub async fn search_papers(
     query: web::Query<SearchPapersRequest>,
 ) -> Result<impl Responder, AppError> {
     info!("Searching for research papers with query: {}", query.query);
-    
-    let papers = app_state.research_paper_service.search_papers(&query.query).await?;
-    
+
+    let papers = app_state
+        .research_paper_service
+        .search_papers(&query.query)
+        .await?;
+
     Ok(HttpResponse::Ok().json(papers))
 }
 
@@ -88,6 +103,6 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(process_paper))
             .route("/did/{did}", web::get().to(get_paper_metadata_by_did))
             .route("/cid/{cid}", web::get().to(get_paper_metadata_by_cid))
-            .route("/search", web::get().to(search_papers))
+            .route("/search", web::get().to(search_papers)),
     );
-} 
+}

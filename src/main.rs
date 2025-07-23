@@ -3,10 +3,10 @@ use base64::engine::general_purpose::STANDARD as Base64Engine;
 use base64::Engine;
 use clap::{Parser, Subcommand};
 use env_logger::Env;
+use std::env;
 use std::io;
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
-use std::env;
 
 mod config;
 mod database;
@@ -20,12 +20,12 @@ mod utils;
 
 use config::Config;
 use middleware::rate_limiter::UserRateLimiter;
-use services::ipfs_service::IPFSService;
-use services::did_service::DIDService;
 use services::bioagents_service::BioAgentsService;
 use services::dataverse_service::DataverseService;
-use services::ucan_service::UcanService;
+use services::did_service::DIDService;
+use services::ipfs_service::IPFSService;
 use services::research_paper_service::ResearchPaperService;
+use services::ucan_service::UcanService;
 
 // Post-quantum crypto imports
 use pqcrypto_dilithium::dilithium5;
@@ -111,44 +111,47 @@ async fn start_server() -> io::Result<()> {
         io::Error::new(io::ErrorKind::Other, "IPFS service initialization failed")
     })?;
     let ipfs_service = Arc::new(ipfs_service);
-    
+
     // Initialize database connection pool
-    let db_pool = database::init_db_pool(&config.database_url).await.map_err(|e| {
-        log::error!("Failed to initialize database pool: {}", e);
-        io::Error::new(io::ErrorKind::Other, "Database initialization failed")
-    })?;
+    let db_pool = database::init_db_pool(&config.database_url)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to initialize database pool: {}", e);
+            io::Error::new(io::ErrorKind::Other, "Database initialization failed")
+        })?;
     let db_pool = Arc::new(db_pool);
 
     // Initialize DID service
     let did_service = DIDService::new(db_pool.clone(), ipfs_service.clone());
     let did_service = Arc::new(did_service);
-    
+
     // Initialize BioAgents service
     let bioagents_service = BioAgentsService::new(
-        &env::var("BIOAGENTS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+        &env::var("BIOAGENTS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string()),
     );
     let bioagents_service = Arc::new(bioagents_service);
-    
+
     // Initialize Dataverse service
     let dataverse_service = DataverseService::new(
-        &env::var("DATAVERSE_API_URL").unwrap_or_else(|_| "https://dataverse.harvard.edu/api".to_string()),
-        &env::var("DATAVERSE_API_KEY").unwrap_or_else(|_| "".to_string())
+        &env::var("DATAVERSE_API_URL")
+            .unwrap_or_else(|_| "https://dataverse.harvard.edu/api".to_string()),
+        &env::var("DATAVERSE_API_KEY").unwrap_or_else(|_| "".to_string()),
     );
     let dataverse_service = Arc::new(dataverse_service);
-    
+
     // Initialize UCAN service
     let ucan_service = UcanService::new(db_pool.clone()).await.map_err(|e| {
         log::error!("Failed to initialize UCAN service: {}", e);
         io::Error::new(io::ErrorKind::Other, "UCAN service initialization failed")
     })?;
     let ucan_service = Arc::new(ucan_service);
-    
+
     // Initialize Research Paper service
     let research_paper_service = ResearchPaperService::new(
         db_pool.clone(),
         ipfs_service.clone(),
         did_service.clone(),
-        bioagents_service.clone()
+        bioagents_service.clone(),
     );
     let research_paper_service = Arc::new(research_paper_service);
 
@@ -161,7 +164,7 @@ async fn start_server() -> io::Result<()> {
         ucan_service: ucan_service.clone(),
         research_paper_service: research_paper_service.clone(),
     };
-    
+
     let rate_limiter = UserRateLimiter::new();
 
     start_task_cleanup(ipfs_service.clone());

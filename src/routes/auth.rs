@@ -1,10 +1,10 @@
-use crate::models::{auth::AuthResponse, requests::*};
 use crate::errors::AppError;
 use crate::models::auth::AuthUser;
-use actix_web::{web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
-use log::info;
+use crate::models::{auth::AuthResponse, requests::*};
 use crate::routes::AppState;
+use actix_web::{web, HttpResponse, Responder};
+use log::info;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct UcanIssueRequest {
@@ -80,23 +80,23 @@ async fn issue_ucan(
     user: web::ReqData<AuthUser>,
     req: web::Json<UcanIssueRequest>,
 ) -> Result<impl Responder, AppError> {
-    info!("User {} is issuing a UCAN token for {}", user.id, req.audience);
-    
-    let capabilities = req.capabilities.iter()
+    info!(
+        "User {} is issuing a UCAN token for {}",
+        user.id, req.audience
+    );
+
+    let capabilities = req
+        .capabilities
+        .iter()
         .map(|cap| (cap.with.clone(), cap.can.clone()))
         .collect::<Vec<_>>();
-    
-    let (token, expires_at) = app_state.ucan_service.issue_token(
-        user.id,
-        &req.audience,
-        &capabilities,
-        req.expiration,
-    ).await?;
-    
-    Ok(HttpResponse::Created().json(UcanResponse {
-        token,
-        expires_at,
-    }))
+
+    let (token, expires_at) = app_state
+        .ucan_service
+        .issue_token(user.id, &req.audience, &capabilities, req.expiration)
+        .await?;
+
+    Ok(HttpResponse::Created().json(UcanResponse { token, expires_at }))
 }
 
 /// Validate a UCAN token
@@ -106,15 +106,17 @@ async fn validate_ucan(
     req: web::Json<UcanValidateRequest>,
 ) -> Result<impl Responder, AppError> {
     info!("Validating UCAN token");
-    
+
     let validation = app_state.ucan_service.validate_token(&req.token).await?;
-    
+
     let response = match validation {
         Ok(data) => {
-            let capabilities = data.capabilities.into_iter()
+            let capabilities = data
+                .capabilities
+                .into_iter()
                 .map(|(with, can)| UcanCapability { with, can })
                 .collect();
-                
+
             UcanValidationResponse {
                 valid: true,
                 issuer: Some(data.issuer),
@@ -123,7 +125,7 @@ async fn validate_ucan(
                 expires_at: Some(data.expires_at),
                 reason: None,
             }
-        },
+        }
         Err(e) => UcanValidationResponse {
             valid: false,
             issuer: None,
@@ -131,9 +133,9 @@ async fn validate_ucan(
             capabilities: None,
             expires_at: None,
             reason: Some(e),
-        }
+        },
     };
-    
+
     Ok(HttpResponse::Ok().json(response))
 }
 
@@ -145,9 +147,12 @@ async fn revoke_ucan(
     req: web::Json<UcanRevokeRequest>,
 ) -> Result<impl Responder, AppError> {
     info!("User {} is revoking a UCAN token", user.id);
-    
-    app_state.ucan_service.revoke_token(user.id, &req.token).await?;
-    
+
+    app_state
+        .ucan_service
+        .revoke_token(user.id, &req.token)
+        .await?;
+
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "status": "success",
         "message": "Token revoked successfully"

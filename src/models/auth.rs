@@ -46,7 +46,7 @@ impl AuthUser {
             roles,
         }
     }
-    
+
     #[allow(dead_code)]
     pub fn is_admin(&self) -> bool {
         self.roles.contains(&"admin".to_string())

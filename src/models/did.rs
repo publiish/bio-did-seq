@@ -137,10 +137,15 @@ pub fn generate_did() -> String {
 }
 
 /// Create a default DID document structure
-pub fn create_default_did_document(did: &str, controller: &str, public_key: &str, metadata: BiometadataExtension) -> DIDDocument {
+pub fn create_default_did_document(
+    did: &str,
+    controller: &str,
+    public_key: &str,
+    metadata: BiometadataExtension,
+) -> DIDDocument {
     let now = Utc::now();
     let verification_method_id = format!("{}#keys-1", did);
-    
+
     DIDDocument {
         context: vec![
             "https://www.w3.org/ns/did/v1".to_string(),
@@ -159,16 +164,14 @@ pub fn create_default_did_document(did: &str, controller: &str, public_key: &str
         }],
         authentication: vec![verification_method_id],
         assertion_method: None,
-        service: vec![
-            Service {
-                id: format!("{}#storage", did),
-                service_type: "IPFSStorage".to_string(),
-                service_endpoint: "https://ipfs.bio-did-seq.example/api".to_string(),
-                description: Some("IPFS storage for biological research data".to_string()),
-            },
-        ],
+        service: vec![Service {
+            id: format!("{}#storage", did),
+            service_type: "IPFSStorage".to_string(),
+            service_endpoint: "https://ipfs.bio-did-seq.example/api".to_string(),
+            description: Some("IPFS storage for biological research data".to_string()),
+        }],
         created: now,
         updated: now,
         metadata: Some(metadata),
     }
-} 
+}

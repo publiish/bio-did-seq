@@ -9,7 +9,7 @@ use crate::{errors::ServiceError, IPFSService};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use dashmap::DashMap;
 use ipfs_api::{IpfsApi, IpfsClient};
-use log::{info, error};
+use log::{error, info};
 use mysql_async::{prelude::*, Pool, Row};
 use std::sync::Arc;
 
@@ -17,23 +17,23 @@ use std::sync::Arc;
 pub async fn init_db_pool(database_url: &str) -> Result<Pool, String> {
     info!("Initializing database connection pool");
     let pool = Pool::new(database_url);
-    
+
     // Test the connection
     let mut conn = pool.get_conn().await.map_err(|e| {
         error!("Failed to connect to database: {}", e);
         format!("Failed to connect to database: {}", e)
     })?;
-    
+
     let result: Option<i32> = conn.query_first("SELECT 1").await.map_err(|e| {
         error!("Failed to execute test query: {}", e);
         format!("Failed to execute test query: {}", e)
     })?;
-    
+
     if result != Some(1) {
         error!("Database connection test returned unexpected result");
         return Err("Database connection test failed".to_string());
     }
-    
+
     info!("Database connection pool initialized successfully");
     Ok(pool)
 }
