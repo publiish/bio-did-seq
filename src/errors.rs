@@ -36,9 +36,6 @@ pub enum AppError {
     #[error("Deserialization error")]
     DeserializationError,
     
-    #[error("Input validation error: {0}")]
-    InputError(String),
-    
     #[error("File error: {0}")]
     FileError(String),
     
@@ -50,9 +47,6 @@ pub enum AppError {
     
     #[error("External service error: {0}")]
     ExternalServiceError(String),
-    
-    #[error("Internal server error: {0}")]
-    InternalServerError(String),
 }
 
 impl actix_web::error::ResponseError for AppError {
@@ -67,12 +61,10 @@ impl actix_web::error::ResponseError for AppError {
             AppError::ServiceError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::SerializationError => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::DeserializationError => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::InputError(_) => StatusCode::BAD_REQUEST,
             AppError::FileError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::RequestError(_) => StatusCode::BAD_REQUEST,
             AppError::DataverseApiError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ExternalServiceError(_) => StatusCode::BAD_GATEWAY,
-            AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

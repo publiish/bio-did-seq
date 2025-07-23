@@ -1,12 +1,11 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde::Deserialize;
 use log::info;
-use std::sync::Arc;
 
 use crate::errors::AppError;
 use crate::models::auth::AuthUser;
 use crate::models::did::{DIDCreationRequest, DIDUpdateRequest};
-use crate::services::did_service::DIDService;
+use crate::routes::AppState;
 
 /// Request to link a DID to a Dataverse dataset
 #[derive(Deserialize)]
@@ -16,34 +15,34 @@ pub struct LinkToDataverseRequest {
 
 /// Create a new DID
 pub async fn create_did(
-    service: web::Data<DIDService>,
+    app_state: web::Data<AppState>,
     user: web::ReqData<AuthUser>,
     req: web::Json<DIDCreationRequest>,
 ) -> Result<impl Responder, AppError> {
     info!("Creating new DID for user {}", user.id);
     
-    let did_doc = service.create_did(req.into_inner(), user.id).await?;
+    let did_doc = app_state.did_service.create_did(req.into_inner(), user.id).await?;
     
     Ok(HttpResponse::Created().json(did_doc))
 }
 
 /// Get a DID document by its identifier
 pub async fn get_did(
-    did_service: web::Data<Arc<DIDService>>,
+    app_state: web::Data<AppState>,
     path: web::Path<String>,
 ) -> Result<impl Responder, AppError> {
     let did_id = path.into_inner();
     
     info!("Retrieving DID document: {}", did_id);
     
-    let did_document = did_service.get_did(&did_id).await?;
+    let did_document = app_state.did_service.get_did(&did_id).await?;
     
     Ok(HttpResponse::Ok().json(did_document))
 }
 
 /// Update a DID Document
 pub async fn update_did(
-    service: web::Data<DIDService>,
+    app_state: web::Data<AppState>,
     user: web::ReqData<AuthUser>,
     path: web::Path<String>,
     req: web::Json<DIDUpdateRequest>,
@@ -51,7 +50,7 @@ pub async fn update_did(
     let did = path.into_inner();
     info!("User {} updating DID: {}", user.id, did);
     
-    let did_doc = service.update_did(&did, req.into_inner(), user.id).await?;
+    let did_doc = app_state.did_service.update_did(&did, req.into_inner(), user.id).await?;
     
     Ok(HttpResponse::Ok().json(did_doc))
 }
@@ -59,7 +58,7 @@ pub async fn update_did(
 /// Link a DID to a Dataverse dataset
 pub async fn link_to_dataverse(
     user: web::ReqData<AuthUser>,
-    did_service: web::Data<Arc<DIDService>>,
+    app_state: web::Data<AppState>,
     path: web::Path<String>,
     request: web::Json<LinkToDataverseRequest>,
 ) -> Result<impl Responder, AppError> {
@@ -67,7 +66,7 @@ pub async fn link_to_dataverse(
     
     info!("Linking DID: {} to Dataverse DOI: {}", did_id, request.dataverse_doi);
     
-    did_service.link_to_dataverse(&did_id, &request.dataverse_doi, user.id).await?;
+    app_state.did_service.link_to_dataverse(&did_id, &request.dataverse_doi, user.id).await?;
     
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "DID successfully linked to Dataverse dataset",
@@ -78,13 +77,13 @@ pub async fn link_to_dataverse(
 
 /// Resolve a DID to its DID Document
 pub async fn resolve_did(
-    service: web::Data<DIDService>,
+    app_state: web::Data<AppState>,
     path: web::Path<String>,
 ) -> Result<impl Responder, AppError> {
     let did = path.into_inner();
     info!("Resolving DID: {}", did);
     
-    let did_doc = service.resolve_did(&did).await?;
+    let did_doc = app_state.did_service.resolve_did(&did).await?;
     
     Ok(HttpResponse::Ok().json(did_doc))
 }
@@ -97,6 +96,6 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
             .route("/{did}", web::get().to(get_did))
             .route("/{did}", web::put().to(update_did))
             .route("/{did}/dataverse", web::post().to(link_to_dataverse))
-            .route("/{did}/resolve", web::get().to(resolve_did))
+            .route("/resolve/{did}", web::get().to(resolve_did))
     );
 } 

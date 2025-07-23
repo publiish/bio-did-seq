@@ -36,6 +36,7 @@ pub struct AuthUser {
 }
 
 impl AuthUser {
+    #[allow(dead_code)]
     pub fn new(user_id: i64, username: String, roles: Vec<String>) -> Self {
         Self {
             user_id,
@@ -46,6 +47,7 @@ impl AuthUser {
         }
     }
     
+    #[allow(dead_code)]
     pub fn is_admin(&self) -> bool {
         self.roles.contains(&"admin".to_string())
     }
@@ -53,6 +55,7 @@ impl AuthUser {
 
 /// Login request model
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
@@ -60,6 +63,7 @@ pub struct LoginRequest {
 
 /// API key request model
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ApiKeyRequest {
     pub name: String,
     pub expires_in_days: Option<i32>,

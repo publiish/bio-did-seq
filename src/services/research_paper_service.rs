@@ -68,6 +68,7 @@ impl FromRow for PaperDbRow {
 /// Service for managing research paper metadata
 pub struct ResearchPaperService {
     db_pool: Arc<mysql_async::Pool>,
+    #[allow(dead_code)]
     ipfs_service: Arc<IPFSService>,
     did_service: Arc<DIDService>,
     bioagents_service: Arc<BioAgentsService>,

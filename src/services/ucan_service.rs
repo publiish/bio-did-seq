@@ -1,13 +1,10 @@
 use crate::errors::AppError;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use log::{info, error};
 use chrono::{Utc, Duration};
 use serde::{Deserialize, Serialize};
 use mysql_async::{Pool, prelude::*};
-use std::collections::HashMap;
 use uuid;
-
-use ucan::crypto::did::{DidParser, KeyConstructorSlice};
 
 /// Resource types for Bio-DID-Seq capabilities
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -44,102 +41,58 @@ pub struct BioCapability {
     pub action: BioAction,
 }
 
-/// In memory token store
-#[derive(Default)]
-pub struct MemoryTokenStore {
-    tokens: Arc<RwLock<HashMap<String, String>>>,
-}
-
-impl MemoryTokenStore {
-    pub fn new() -> Self {
-        Self {
-            tokens: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    /// Store a token with a key
-    pub async fn store(&self, key: String, token: String) -> Result<(), anyhow::Error> {
-        let mut tokens = self.tokens.write().unwrap();
-        tokens.insert(key, token);
-        Ok(())
-    }
-
-    /// Get a token by key
-    pub async fn get(&self, key: &str) -> Result<Option<String>, anyhow::Error> {
-        let tokens = self.tokens.read().unwrap();
-        Ok(tokens.get(key).cloned())
-    }
+/// Token validation result
+pub struct TokenValidationData {
+    pub issuer: String,
+    pub audience: String,
+    pub capabilities: Vec<(String, String)>,
+    pub expires_at: i64,
 }
 
 /// Service for handling UCAN based authorization
 pub struct UcanService {
     db_pool: Arc<Pool>,
-    did_parser: DidParser,
-    token_store: MemoryTokenStore,
-    issuer_key: Arc<DummyKeyMaterial>,
 }
 
 impl UcanService {
     /// Create a new UCAN service
     pub async fn new(db_pool: Arc<Pool>) -> Result<Self, AppError> {
-        // For simplicity, we're using a placeholder for a real implementation,
-        // we'll set up proper key constructors
-        const SUPPORTED_KEY_TYPES: &KeyConstructorSlice = &[];
-        
-        let did_parser = DidParser::new(SUPPORTED_KEY_TYPES);
-        let token_store = MemoryTokenStore::new();
-        
-        // Load the issuer key - in a real implementation, we'll use actual key material
-        let issuer_key = Arc::new(DummyKeyMaterial);
-        
         Ok(Self {
             db_pool,
-            did_parser,
-            token_store,
-            issuer_key,
         })
     }
     
     /// Issue a UCAN token for a user
-    pub async fn issue_token(&self, user_id: i64, audience_did: &str, capabilities: Vec<BioCapability>) -> Result<String, AppError> {
+    pub async fn issue_token(
+        &self, 
+        user_id: i64, 
+        audience_did: &str, 
+        capabilities: &[(String, String)], 
+        expiration_opt: Option<i64>
+    ) -> Result<(String, i64), AppError> {
         let now = Utc::now();
-        let expiry = now + Duration::hours(24);
+        
+        // Default expiration is 24 hours if not specified
+        let expiry = match expiration_opt {
+            Some(exp_seconds) => now + Duration::seconds(exp_seconds),
+            None => now + Duration::hours(24),
+        };
+        
+        let expiry_timestamp = expiry.timestamp();
         
         // In a real implementation, you would use the actual DID of the service as issuer
         let service_did = "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK";
         
-        // Convert bio capabilities to UCAN capabilities
-        let _ucan_capabilities = capabilities.iter()
-            .map(|cap| {
-                let resource = match &cap.resource {
-                    BioResource::Dataset(id) => format!("bio://dataset/{}", id),
-                    BioResource::DID(id) => format!("bio://did/{}", id),
-                    BioResource::File(id) => format!("bio://file/{}", id),
-                    BioResource::Metadata(id) => format!("bio://metadata/{}", id),
-                    BioResource::UserProfile(id) => format!("bio://user/{}", id),
-                };
-                
-                let action = match cap.action {
-                    BioAction::Create => "create",
-                    BioAction::Read => "read",
-                    BioAction::Update => "update",
-                    BioAction::Delete => "delete",
-                    BioAction::Upload => "upload",
-                    BioAction::Download => "download",
-                    BioAction::Process => "process",
-                    BioAction::Publish => "publish",
-                };
-                
-                (resource, action.to_string())
-            })
-            .collect::<Vec<_>>();
-        
-        // Using a simpler approach to create UCANs since UcanBuilder doesn't work well with trait objects
-        // For Production implementation, we should use a proper key implementation instead of the dummy
-        
         // Format a simplified JWT-like token for demonstration
         let token_id = uuid::Uuid::new_v4().to_string();
-        let token = format!("ucan:demo:{}:{}:{}:{}", token_id, service_did, audience_did, now.timestamp());
+        let capabilities_json = serde_json::to_string(&capabilities).unwrap_or_default();
+        let token = format!("ucan:demo:{}:{}:{}:{}:{}",
+            token_id, 
+            service_did, 
+            audience_did, 
+            now.timestamp(),
+            capabilities_json
+        );
         
         // Store the token in the database
         let mut conn = self.db_pool.get_conn().await.map_err(|e| {
@@ -149,9 +102,6 @@ impl UcanService {
 
         let issued_at = now.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
         let expires_at = expiry.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-        
-        // Generate a UUID for the token ID
-        let token_id = uuid::Uuid::new_v4().to_string();
         
         "INSERT INTO ucan_tokens (id, user_id, token, audience_did, issued_at, expires_at) VALUES (:id, :user_id, :token, :audience_did, :issued_at, :expires_at)"
             .with(params! {
@@ -171,95 +121,100 @@ impl UcanService {
         
         info!("Issued UCAN token for user {} to audience {}", user_id, audience_did);
         
-        Ok(token)
+        Ok((token, expiry_timestamp))
     }
     
-    /// Verify a UCAN token and extract its capabilities
-    pub async fn verify_token(&self, token: &str) -> Result<Vec<(String, String)>, AppError> {
-        // Parse token with simple format: ucan:demo:id:issuer:audience:timestamp
+    /// Validate a UCAN token
+    pub async fn validate_token(&self, token: &str) -> Result<Result<TokenValidationData, String>, AppError> {
+        // Parse token with simple format: ucan:demo:id:issuer:audience:timestamp:capabilities
         let parts: Vec<&str> = token.split(':').collect();
-        if parts.len() < 6 || parts[0] != "ucan" || parts[1] != "demo" {
-            return Err(AppError::AuthError("Invalid UCAN token format".to_string()));
+        if parts.len() < 7 || parts[0] != "ucan" || parts[1] != "demo" {
+            return Ok(Err("Invalid UCAN token format".to_string()));
         }
         
-        // For Production implementation, we need to parse a proper UCAN token
-        // For now, we'll just return some dummy capabilities
-        let capabilities = vec![
-            ("bio://dataset/*".to_string(), "read".to_string()),
-            ("bio://did/*".to_string(), "read".to_string()),
-        ];
+        // Extract token components
+        let token_id = parts[2];
+        let issuer = parts[3];
+        let audience = parts[4];
         
-        Ok(capabilities)
-    }
-    
-    /// Check if a token has a specific capability
-    pub async fn has_capability(&self, token: &str, resource: &str, action: &str) -> Result<bool, AppError> {
-        let capabilities = self.verify_token(token).await?;
+        // Parse timestamp safely
+        let issued_timestamp = match parts[5].parse::<i64>() {
+            Ok(ts) => ts,
+            Err(_) => return Ok(Err("Invalid timestamp in token".to_string())),
+        };
         
-        // Check if any capability matches the requested resource and action
-        let has_capability = capabilities.iter().any(|(res, act)| {
-            res == resource && act == action
-        });
+        // Log the token information
+        info!("Validating token issued at timestamp {}", issued_timestamp);
         
-        Ok(has_capability)
-    }
-    
-    /// Delegate capabilities to another user
-    pub async fn delegate_capability(&self, 
-        user_id: i64, 
-        from_token: &str, 
-        to_did: &str, 
-        _capabilities: Vec<BioCapability>
-    ) -> Result<String, AppError> {
-        let now = Utc::now();
-        let expiry = now + Duration::hours(24);
+        let capabilities_json = parts[6];
         
-        // First verify the original token
-        let _capabilities = self.verify_token(from_token).await?;
+        // Check if token is revoked
+        let is_revoked = self.is_token_revoked(token).await?;
+        if is_revoked {
+            return Ok(Err("Token has been revoked".to_string()));
+        }
         
-        // Format a simplified JWT like token for demonstration
-        let token_id = uuid::Uuid::new_v4().to_string();
-        let token = format!("ucan:demo:{}:{}:{}:{}", token_id, "delegated", to_did, now.timestamp());
+        // Check if token is expired
+        let now = Utc::now().timestamp();
         
-        // Store the token in the database with delegation info
+        // Get expiration from database
         let mut conn = self.db_pool.get_conn().await.map_err(|e| {
             error!("Failed to get database connection: {}", e);
             AppError::DatabaseError(e.to_string())
         })?;
-
-        let issued_at = now.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-        let expires_at = expiry.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
         
-        // Get the issuer from the original token
-        let issuer = from_token.split(':').nth(3).unwrap_or("unknown");
-        
-        // Generate a UUID for the token ID
-        let token_id = uuid::Uuid::new_v4().to_string();
-        
-        "INSERT INTO ucan_tokens (id, user_id, token, audience_did, issued_at, expires_at, delegated_from) VALUES (:id, :user_id, :token, :audience_did, :issued_at, :expires_at, :delegated_from)"
+        // Use string format for the expires_at field instead of NaiveDateTime
+        let expires_at: Option<String> = "SELECT DATE_FORMAT(expires_at, '%Y-%m-%d %H:%i:%s') FROM ucan_tokens WHERE id = :id"
             .with(params! {
-                "id" => &token_id,
-                "user_id" => user_id,
-                "token" => &token,
-                "audience_did" => to_did,
-                "issued_at" => issued_at,
-                "expires_at" => expires_at,
-                "delegated_from" => issuer,
+                "id" => token_id,
             })
-            .run(&mut conn)
+            .first(&mut conn)
             .await
             .map_err(|e| {
-                error!("Database error when storing delegated UCAN token: {}", e);
+                error!("Database error when checking token expiration: {}", e);
                 AppError::DatabaseError(e.to_string())
             })?;
         
-        info!("Delegated capabilities from user {} to DID {}", user_id, to_did);
+        // Parse the expires_at string to a timestamp
+        let expires_timestamp = match expires_at {
+            Some(dt_str) => {
+                match chrono::NaiveDateTime::parse_from_str(&dt_str, "%Y-%m-%d %H:%M:%S") {
+                    Ok(dt) => dt.and_utc().timestamp(),
+                    Err(_) => return Ok(Err("Invalid expiration date format".to_string())),
+                }
+            },
+            None => return Ok(Err("Token not found in database".to_string())),
+        };
         
-        Ok(token)
+        if now > expires_timestamp {
+            return Ok(Err("Token has expired".to_string()));
+        }
+        
+        // Parse capabilities
+        let capabilities: Vec<(String, String)> = match serde_json::from_str(capabilities_json) {
+            Ok(caps) => caps,
+            Err(_) => return Ok(Err("Invalid capabilities format in token".to_string())),
+        };
+        
+        // Token is valid
+        Ok(Ok(TokenValidationData {
+            issuer: issuer.to_string(),
+            audience: audience.to_string(),
+            capabilities,
+            expires_at: expires_timestamp,
+        }))
     }
     
     /// Revoke a UCAN token
-    pub async fn revoke_token(&self, user_id: i64, token_id: &str) -> Result<(), AppError> {
+    pub async fn revoke_token(&self, user_id: i64, token: &str) -> Result<(), AppError> {
+        // Parse token to extract ID
+        let parts: Vec<&str> = token.split(':').collect();
+        if parts.len() < 3 || parts[0] != "ucan" || parts[1] != "demo" {
+            return Err(AppError::AuthError("Invalid UCAN token format".to_string()));
+        }
+        
+        let token_id = parts[2];
+        
         // Check if the user owns the token
         let mut conn = self.db_pool.get_conn().await.map_err(|e| {
             error!("Failed to get database connection: {}", e);
@@ -303,9 +258,9 @@ impl UcanService {
     }
     
     /// Check if a token is revoked
-    pub async fn is_token_revoked(&self, token: &str) -> Result<bool, AppError> {
+    async fn is_token_revoked(&self, token: &str) -> Result<bool, AppError> {
         // Extract token ID from our simple format
-        let _token_id = token.split(':').nth(2).ok_or_else(|| {
+        let token_id = token.split(':').nth(2).ok_or_else(|| {
             error!("Invalid token format");
             AppError::AuthError("Invalid token format".to_string())
         })?;
@@ -316,10 +271,9 @@ impl UcanService {
             AppError::DatabaseError(e.to_string())
         })?;
         
-        // We use the token itself as the identifier, since we might not have stored it by ID
-        let revoked: Option<i32> = "SELECT revoked FROM ucan_tokens WHERE token = :token"
+        let revoked: Option<i32> = "SELECT revoked FROM ucan_tokens WHERE id = :id"
             .with(params! {
-                "token" => token,
+                "id" => token_id,
             })
             .first(&mut conn)
             .await
@@ -329,22 +283,5 @@ impl UcanService {
             })?;
         
         Ok(revoked.unwrap_or(0) == 1)
-    }
-}
-
-// Dummy key material for demonstration purposes
-// For Production implementation, we'll use a proper key from the ucan-key-support crate
-#[derive(Clone)]
-struct DummyKeyMaterial;
-
-// Since we can't use the real KeyMaterial trait due to lifetime issues,
-// we'll implement a simplified version for our needs
-impl DummyKeyMaterial {
-    fn get_did(&self) -> String {
-        "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK".to_string()
-    }
-
-    fn get_jwt_algorithm_name(&self) -> String {
-        "EdDSA".to_string()
     }
 } 
